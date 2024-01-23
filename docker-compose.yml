@@ -1,0 +1,53 @@
+version: "3.8"
+
+volumes:
+  postgres_data: {}
+  redis_data: {}
+
+services:
+  dj_template.django: &django
+    image: ${IMAGE_PREFIX}django${IMAGE_SUFFIX}
+    container_name: dj-template-django
+    build:
+      context: .
+      dockerfile: docker/django/Dockerfile
+      cache_from:
+        - ${IMAGE_PREFIX}django${IMAGE_SUFFIX}
+    command: /scripts/start-local.sh
+    depends_on:
+      - dj_template.postgres
+      - dj_template.redis
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.local
+      - .env
+
+  dj_template.postgres:
+    image: postgres:16.1
+    container_name: dj-template-postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env.local
+      - .env
+
+  dj_template.redis:
+    image: redis:7.0-alpine
+    container_name: dj-template-redis
+    volumes:
+      - redis_data:/data
+
+  dj_template.celery_worker:
+    <<: *django
+    container_name: dj-template-celery-worker
+    ports: []
+    command: /scripts/celery/start-worker.sh
+
+  dj_template.celery_beat:
+    <<: *django
+    container_name: dj-template-celery-beat
+    ports: []
+    command: /scripts/celery/start-beat.sh
